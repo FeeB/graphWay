@@ -94,11 +94,13 @@ public class MyAI extends AI {
 		Tile startTile = new Tile();
 		startTile.setxCoord(Math.round(info.getX()/SIZE));
 		startTile.setyCoord(Math.round(info.getY()/SIZE));
+		startTile.setAccessible(raster[startTile.getxCoord()][startTile.getyCoord()]);
 		startTile.setWeight(0);
 		
 		Tile targetTile = new Tile();
 		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().x/SIZE));
 		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().y/SIZE));
+		targetTile.setAccessible(raster[targetTile.getxCoord()][targetTile.getyCoord()]);
 		
 		//first add startTile to openList
 		openList.add(startTile);
@@ -125,40 +127,6 @@ public class MyAI extends AI {
 				}
 			}
 		}
-		
-		
-		
-//		for (int x=0; x<distance.length; x++) {
-//			for (int y=0; y<distance.length; y++) {
-//				distance[x][y] = Integer.MAX_VALUE;
-//			}
-//		}
-//		
-//		distance[startTile.getxCoord()][startTile.getyCoord()] = 0;
-//		openList.add(startTile);
-//		
-//		for (int i=0; i<distance.length; i++) {
-//			Tile nextTile = minVertex(distance, visited);
-//			visited[nextTile.getxCoord()][nextTile.getyCoord()] = true;
-//			
-//			// The shortest path to next is dist[next] and via pred[next].
-//		
-//			 ArrayList<Tile> neighbours = findNeighbour(nextTile);
-//			 Tile prevTile = new Tile();
-//			 prevTile.setxCoord(nextTile.getxCoord());
-//			 prevTile.setyCoord(nextTile.getyCoord());
-//			 
-//			 for (Tile tile : neighbours) {
-//				int weight = distance[nextTile.getxCoord()][nextTile.getyCoord()] + tile.getWeight();
-//				
-//				
-//				if (distance[tile.getxCoord()][tile.getyCoord()] > weight){
-//					distance[tile.getxCoord()][tile.getyCoord()] = weight;
-//					tile.setPrev(nextTile);
-//					
-//				}
-//			}
-//		}
 	}
 	
 	public ArrayList<Tile> storePath(Tile startTile, Tile targetTile){
@@ -174,29 +142,14 @@ public class MyAI extends AI {
 		
 	}
 	
-	private static Tile minVertex (int[][] distance, boolean[][] visited) {
-		int dist = Integer.MAX_VALUE;
-		Tile nextTile = new Tile();
-		nextTile.setxCoord(-1);
-		nextTile.setyCoord(-1);  // graph not connected, or no unvisited vertices
-		for (int i = 0; i < distance.length; i++) {
-			for (int j = 0; j < distance.length; j++){
-				if (!visited[i][j] && distance[i][j] < dist) {
-					nextTile.setxCoord(i);
-					nextTile.setyCoord(j);
-					dist=distance[i][j];
-				}
-			}
-		 }
-		 return nextTile;
-	}
-	
 	private ArrayList<Tile> findNeighbour(Tile nextTile){
 		ArrayList<Tile> tiles = new ArrayList<>();
 		
 		for (int row = -1; row < 2; row++) {
 			for (int col = -1; col < 2; col++) {
 				if (row == 0 && col == 0){
+					continue;
+				}else if (!raster[nextTile.getxCoord() + row][nextTile.getyCoord() + col]){
 					continue;
 				}else{
 					Tile tile = new Tile();
