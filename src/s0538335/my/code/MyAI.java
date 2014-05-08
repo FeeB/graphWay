@@ -10,12 +10,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Set;
 
+import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
+
 import org.lwjgl.opengl.GL11;
 import org.omg.PortableInterceptor.DISCARDING;
 
 import lenz.htw.ai4g.ai.AI;
 import lenz.htw.ai4g.ai.Info;
-
 import s0538335.my.code.Tile;
 
 public class MyAI extends AI {
@@ -27,6 +28,9 @@ public class MyAI extends AI {
 	
 	private static final int SIZE = 10;
 	private boolean[][] raster = new boolean[info.getWorld().getWidth() / SIZE][info.getWorld().getHeight() / SIZE];
+	
+	ArrayList<Tile> openList = new ArrayList<Tile>();
+	ArrayList<Tile> closeList = new ArrayList<Tile>();
 
 	public MyAI(Info arg0) {
 		super(arg0);
@@ -85,64 +89,110 @@ public class MyAI extends AI {
 	
 	public void findPath(){
 		final int [][] distance = new int [raster.length][raster.length];  // shortest known distance from "s"
-		final int [][] previous = new int [raster.length][raster.length];  // preceeding node in path
 		final boolean [][] visited = new boolean [raster.length][raster.length];
 		
-		for (int x=0; x<distance.length; x++) {
-			for (int y=0; y<distance.length; y++) {
-				distance[x][y] = Integer.MAX_VALUE;
+		Tile startTile = new Tile();
+		startTile.setxCoord(Math.round(info.getX()/SIZE));
+		startTile.setyCoord(Math.round(info.getY()/SIZE));
+		startTile.setWeight(0);
+		
+		Tile targetTile = new Tile();
+		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().x/SIZE));
+		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().y/SIZE));
+		
+		//first add startTile to openList
+		openList.add(startTile);
+		
+		
+		while(!closeList.contains(targetTile) || !openList.isEmpty()){
+		
+			Tile actualTile = findLowestWeight();
+			openList.remove(actualTile);
+			closeList.add(actualTile);
+			
+			ArrayList<Tile> neighbours = findNeighbour(actualTile);
+			 
+			for (Tile tile : neighbours) {
+				if (tile.accessible && !closeList.contains(tile)){
+					if(!openList.contains(tile)){
+						openList.add(tile);
+						tile.setPrev(actualTile);
+					}else{
+						// to do: wie kann ich das Gewicht vergleichen? Contains möglicher Weise nicht machbar
+						// wenn gewicht besser dann prev. ändern
+					}
+					
+				}
 			}
 		}
 		
-		distance[Math.round(info.getX()/SIZE)][Math.round(info.getY()/SIZE)] = 0;
 		
-		for (int i=0; i<distance.length; i++) {
-			final int[] nextCoord = minVertex(distance, visited);
-			visited[nextCoord[0]][nextCoord[1]] = true;
-			
-			// The shortest path to next is dist[next] and via pred[next].
 		
-			 ArrayList<Tile> neighbours = findNeighbour(nextCoord);
-			 
-			 
-//			 for (int j=0; j<neighbours.length; j++) {
-//				 neighbours[i][j]
-//				 ToDo find neighbours!
-				 
-//				 final int v = neighbours[j];
-//			     final int d = distance[next] + G.getWeight(next,v);
-//			     if (distance[v] > d) {
-//			    	 distance[v] = d;
-//			         pred[v] = next;
-//			     }
-			 }
+//		for (int x=0; x<distance.length; x++) {
+//			for (int y=0; y<distance.length; y++) {
+//				distance[x][y] = Integer.MAX_VALUE;
+//			}
 //		}
-//		return pred
+//		
+//		distance[startTile.getxCoord()][startTile.getyCoord()] = 0;
+//		openList.add(startTile);
+//		
+//		for (int i=0; i<distance.length; i++) {
+//			Tile nextTile = minVertex(distance, visited);
+//			visited[nextTile.getxCoord()][nextTile.getyCoord()] = true;
+//			
+//			// The shortest path to next is dist[next] and via pred[next].
+//		
+//			 ArrayList<Tile> neighbours = findNeighbour(nextTile);
+//			 Tile prevTile = new Tile();
+//			 prevTile.setxCoord(nextTile.getxCoord());
+//			 prevTile.setyCoord(nextTile.getyCoord());
+//			 
+//			 for (Tile tile : neighbours) {
+//				int weight = distance[nextTile.getxCoord()][nextTile.getyCoord()] + tile.getWeight();
+//				
+//				
+//				if (distance[tile.getxCoord()][tile.getyCoord()] > weight){
+//					distance[tile.getxCoord()][tile.getyCoord()] = weight;
+//					tile.setPrev(nextTile);
+//					
+//				}
+//			}
+//		}
 	}
 	
-	private static int[] minVertex (int[][] distance, boolean[][] visited) {
+	public ArrayList<Tile> storePath(Tile startTile, Tile targetTile){
+		ArrayList<Tile> path = new ArrayList<Tile>();
+		Tile actualTile = targetTile;
+		
+		while (!actualTile.equals(startTile)){
+			path.add(actualTile);
+			actualTile = actualTile.getPrev();
+		}
+		
+		return path;
+		
+	}
+	
+	private static Tile minVertex (int[][] distance, boolean[][] visited) {
 		int dist = Integer.MAX_VALUE;
-		int[] nextCoord = new int[2];
-		int nextX = -1;
-		int nextY = -1; // graph not connected, or no unvisited vertices
+		Tile nextTile = new Tile();
+		nextTile.setxCoord(-1);
+		nextTile.setyCoord(-1);  // graph not connected, or no unvisited vertices
 		for (int i = 0; i < distance.length; i++) {
 			for (int j = 0; j < distance.length; j++){
 				if (!visited[i][j] && distance[i][j] < dist) {
-					nextX = i;
-					nextY = j;
+					nextTile.setxCoord(i);
+					nextTile.setyCoord(j);
 					dist=distance[i][j];
 				}
 			}
 		 }
-		nextCoord[0] = nextX;
-		nextCoord[1] = nextY;
-		 return nextCoord;
+		 return nextTile;
 	}
 	
-	private ArrayList<Tile> findNeighbour(int[] position){
+	private ArrayList<Tile> findNeighbour(Tile nextTile){
 		ArrayList<Tile> tiles = new ArrayList<>();
-		int x = position[0];
-		int y = position[1];
 		
 		for (int row = -1; row < 2; row++) {
 			for (int col = -1; col < 2; col++) {
@@ -150,9 +200,9 @@ public class MyAI extends AI {
 					continue;
 				}else{
 					Tile tile = new Tile();
-					tile.setxCoord(x + row);
-					tile.setyCoord(y + col);
-					tile.setAccessible(raster[x + row][y + col]);
+					tile.setxCoord(nextTile.getxCoord() + row);
+					tile.setyCoord(nextTile.getyCoord() + col);
+					tile.setAccessible(raster[nextTile.getxCoord() + row][nextTile.getyCoord() + col]);
 					
 					if(Math.abs(row)==1 && Math.abs(col)==1){
 						tile.setWeight(14);
@@ -166,6 +216,18 @@ public class MyAI extends AI {
 		}
 		return tiles;
 		
+	}
+	
+	public Tile findLowestWeight(){
+		int lowestWeight = Integer.MAX_VALUE;
+		Tile tileWithLowestWeight = new Tile();
+		for (Tile tile : openList) {
+			if (tile.getWeight() < lowestWeight){
+				lowestWeight = tile.getWeight();
+				tileWithLowestWeight = tile;
+			}
+		}
+		return tileWithLowestWeight;
 	}
 	
 	
