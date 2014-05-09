@@ -1,20 +1,9 @@
 package s0538335.my.code;
 
-import java.awt.List;
-import java.awt.Point;
 import java.awt.Polygon;
-import java.awt.geom.Point2D;
-import java.awt.geom.Point2D.Float;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
-
-import javax.swing.plaf.basic.BasicInternalFrameTitlePane.MaximizeAction;
-
 import org.lwjgl.opengl.GL11;
-import org.omg.PortableInterceptor.DISCARDING;
-
 import lenz.htw.ai4g.ai.AI;
 import lenz.htw.ai4g.ai.Info;
 import s0538335.my.code.Tile;
@@ -31,10 +20,15 @@ public class MyAI extends AI {
 	
 	ArrayList<Tile> openList = new ArrayList<Tile>();
 	ArrayList<Tile> closeList = new ArrayList<Tile>();
+	ArrayList<Tile> path = new ArrayList<Tile>();
+	
+	private int counter;
 
 	public MyAI(Info arg0) {
 		super(arg0);
 		acceleration = info.getMaxAcceleration();
+		createRaster();
+		findPath();
 	}
 
 	@Override
@@ -44,6 +38,8 @@ public class MyAI extends AI {
 
 	@Override
 	public float getAngularAcceleration() {
+		createRaster();
+		findPath();
 		return seek();
 	}
 
@@ -57,8 +53,7 @@ public class MyAI extends AI {
 
 	@Override
 	public void drawDebugStuff() {
-		createRaster();
-		findPath();
+		
 	}
 
 	public void createRaster() {
@@ -75,93 +70,107 @@ public class MyAI extends AI {
 					}
 
 				}
-				GL11.glBegin(GL11.GL_QUADS);
-			    GL11.glVertex3f(x*SIZE, y*SIZE,0.1f);
-			    GL11.glVertex3f(x*SIZE + SIZE, y*SIZE,0.1f);
-			    GL11.glVertex3f(x*SIZE + SIZE, y*SIZE + SIZE,0.1f);
-			    GL11.glVertex3f(x*SIZE, y*SIZE + SIZE,0.1f);
-			    GL11.glEnd();
+//				GL11.glBegin(GL11.GL_QUADS);
+//			    GL11.glVertex3f(x*SIZE, y*SIZE,0.1f);
+//			    GL11.glVertex3f(x*SIZE + SIZE, y*SIZE,0.1f);
+//			    GL11.glVertex3f(x*SIZE + SIZE, y*SIZE + SIZE,0.1f);
+//			    GL11.glVertex3f(x*SIZE, y*SIZE + SIZE,0.1f);
+//			    GL11.glEnd();
 			}
 
 		}
 
 	}
 	
-	public void findPath(){
-		final int [][] distance = new int [raster.length][raster.length];  // shortest known distance from "s"
-		final boolean [][] visited = new boolean [raster.length][raster.length];
-		
+	public void findPath(){		
 		Tile startTile = new Tile();
 		startTile.setxCoord(Math.round(info.getX()/SIZE));
 		startTile.setyCoord(Math.round(info.getY()/SIZE));
 		startTile.setAccessible(raster[startTile.getxCoord()][startTile.getyCoord()]);
 		startTile.setWeight(0);
+		setRightXYCoord(startTile);
 		
 		Tile targetTile = new Tile();
-		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().x/SIZE));
-		targetTile.setxCoord(Math.round(info.getCurrentCheckpoint().y/SIZE));
+		targetTile.setxCoord(info.getCurrentCheckpoint().x/SIZE);
+		targetTile.setyCoord(info.getCurrentCheckpoint().y/SIZE);
+		System.out.println(targetTile.getyCoord());
 		targetTile.setAccessible(raster[targetTile.getxCoord()][targetTile.getyCoord()]);
+		setRightXYCoord(targetTile);
+		System.out.println(targetTile.getyCoord());
 		
 		//first add startTile to openList
 		openList.add(startTile);
 		
 		
-		while(!closeList.contains(targetTile) || !openList.isEmpty()){
+		while(!openList.isEmpty()){
 		
 			Tile actualTile = findLowestWeight();
 			openList.remove(actualTile);
 			closeList.add(actualTile);
 			
-			ArrayList<Tile> neighbours = findNeighbour(actualTile);
+			if(actualTile.isTheSame(targetTile)){
+				targetTile.setPrev(actualTile.getPrev());
+				break;
+			}
+			
+			ArrayList<Tile> neighbours = findNeighbour(actualTile, targetTile);
 			 
 			for (Tile tile : neighbours) {
-				if (tile.accessible && !closeList.contains(tile)){
-					if(!openList.contains(tile)){
+				if (tile.accessible && !listContainsTile(closeList, tile)){
+					if(!listContainsTile(openList, tile)){
 						openList.add(tile);
 						tile.setPrev(actualTile);
 					}else{
-						// to do: wie kann ich das Gewicht vergleichen? Contains möglicher Weise nicht machbar
-						// wenn gewicht besser dann prev. ändern
+						if(getEqualTile(openList, tile).getWeight() > tile.getWeight()){
+							getEqualTile(openList, tile).setWeight(tile.getWeight());
+							getEqualTile(openList, tile).setPrev(actualTile);
+							getEqualTile(openList, tile).setTotalWeight();
+						}
 					}
 					
 				}
 			}
 		}
+		storePath(startTile, targetTile);
 	}
 	
-	public ArrayList<Tile> storePath(Tile startTile, Tile targetTile){
-		ArrayList<Tile> path = new ArrayList<Tile>();
-		Tile actualTile = targetTile;
-		
-		while (!actualTile.equals(startTile)){
+	public void storePath(Tile startTile, Tile targetTile){
+		Tile actualTile = new Tile();
+		actualTile.getObject(targetTile);
+				
+		while (!actualTile.isTheSame(startTile)){
 			path.add(actualTile);
 			actualTile = actualTile.getPrev();
 		}
-		
-		return path;
-		
+		counter = path.size();
 	}
 	
-	private ArrayList<Tile> findNeighbour(Tile nextTile){
+	private ArrayList<Tile> findNeighbour(Tile actualTile, Tile targetTile){
 		ArrayList<Tile> tiles = new ArrayList<>();
 		
 		for (int row = -1; row < 2; row++) {
 			for (int col = -1; col < 2; col++) {
-				if (row == 0 && col == 0){
+				if (row == 0 && col == 0 || actualTile.getxCoord() + row * SIZE < 0 || actualTile.getyCoord() + col * SIZE < 0
+						|| actualTile.getxCoord() + row * SIZE >= info.getWorld().getWidth() / SIZE || actualTile.getyCoord() + col * SIZE >= info.getWorld().getHeight() / SIZE){
 					continue;
-				}else if (!raster[nextTile.getxCoord() + row][nextTile.getyCoord() + col]){
+				}else if (!raster[actualTile.getxCoord() + row * SIZE][actualTile.getyCoord() + col * SIZE]){
 					continue;
 				}else{
 					Tile tile = new Tile();
-					tile.setxCoord(nextTile.getxCoord() + row);
-					tile.setyCoord(nextTile.getyCoord() + col);
-					tile.setAccessible(raster[nextTile.getxCoord() + row][nextTile.getyCoord() + col]);
+					tile.setxCoord(actualTile.getxCoord() + row * SIZE);
+					tile.setyCoord(actualTile.getyCoord() + col * SIZE);
+					tile.setAccessible(raster[actualTile.getxCoord() + row * SIZE][actualTile.getyCoord() + col * SIZE]);
+					
+					int dist = (int) Math.sqrt(Math.pow(targetTile.getxCoord() - tile.getxCoord(), 2) + Math.pow(targetTile.getyCoord() - tile.getyCoord(), 2));
+					tile.setHeuristicWeight(dist);
 					
 					if(Math.abs(row)==1 && Math.abs(col)==1){
 						tile.setWeight(14);
 					}else{
 						tile.setWeight(10);
 					}
+					
+					tile.setTotalWeight();
 					
 					tiles.add(tile);
 				}
@@ -175,12 +184,38 @@ public class MyAI extends AI {
 		int lowestWeight = Integer.MAX_VALUE;
 		Tile tileWithLowestWeight = new Tile();
 		for (Tile tile : openList) {
-			if (tile.getWeight() < lowestWeight){
-				lowestWeight = tile.getWeight();
+			if (tile.getTotalWeight() < lowestWeight){
+				lowestWeight = tile.getTotalWeight();
 				tileWithLowestWeight = tile;
 			}
 		}
 		return tileWithLowestWeight;
+	}
+	
+	public boolean listContainsTile(ArrayList<Tile> list, Tile tile){
+		for (Tile existingTile : list) {
+			if(tile.getxCoord() == existingTile.getxCoord() && tile.getyCoord() == existingTile.getyCoord()) {
+				return true;
+			}
+		}
+		return false;	
+	}
+	
+	public Tile getEqualTile(ArrayList<Tile> list, Tile tile){
+		for (Tile existingTile : list) {
+			if(tile.getxCoord() == existingTile.getxCoord() && tile.getyCoord() == existingTile.getyCoord()) {
+				return existingTile;
+			}
+		}
+		return null;
+	}
+	
+	public void setRightXYCoord(Tile tile){
+		int x = (tile.getxCoord()/10) * 10;
+		int y = (tile.getyCoord()/10) * 10;
+		
+		tile.setxCoord(x);
+		tile.setyCoord(y);
 	}
 	
 	
@@ -188,16 +223,33 @@ public class MyAI extends AI {
 
 	public float seek() {
 
-		acceleration = info.getMaxAcceleration();
-
-		float newOrientation = getNewOrientation(info.getCurrentCheckpoint().x, info.getCurrentCheckpoint().y);
+//		acceleration = info.getMaxAcceleration();
+//		int actualX = (int) (((info.getX() / SIZE) / 100) * 10);
+//		int actualY = (int) (((info.getY() / SIZE) / 100) * 10);
+//		int targetX = (int) (((info.getCurrentCheckpoint().x / SIZE) / 10) * 10);
+//		int targetY = (int) (((info.getCurrentCheckpoint().y / SIZE) / 10) * 10);
+//		Rectangle2D.Float recActualPos = new Rectangle2D.Float(actualX, actualY, SIZE, SIZE);
+//		Rectangle2D.Float recTarget = new Rectangle2D.Float(targetX, targetY, SIZE, SIZE);
+//		
+//		
+//		
+//		while(!recActualPos.intersects(recTarget)){
+		
+		
+		float newOrientation = getNewOrientation(path.get(counter).getxCoord(), path.get(counter).getxCoord());
 
 		float difference = newOrientation - info.getOrientation();
 
 		float wunschdrehGeschwindigkeite = difference * info.getMaxAngularVelocity() / rotationTime;
 		float drehBeschleunigung = (wunschdrehGeschwindigkeite - info.getAngularVelocity()) / wishedTime;
 
+		counter--;
+		if(counter < 0){
+			findPath();
+		}
+		
 		return drehBeschleunigung;
+		
 	}
 
 	// Orientation to the target

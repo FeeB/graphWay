@@ -5,7 +5,10 @@ public class Tile {
 		int yCoord;
 		Tile prev;
 		int weight;
+		int heuristicWeight;
+		int totalWeight;
 		boolean accessible;
+		
 		
 		
 		public int getxCoord() {
@@ -29,12 +32,6 @@ public class Tile {
 			this.prev = prev;
 		}
 		
-		public int getWeight() {
-			return weight;
-		}
-		public void setWeight(int weight) {
-			this.weight = weight;
-		}
 		
 		public boolean getAccessible(){
 			return accessible;
@@ -43,5 +40,41 @@ public class Tile {
 			this.accessible = accessible;
 		}
 		
+		public int getWeight() {
+			return weight;
+		}
+		public void setWeight(int weight) {
+			this.weight = weight;
+		}
 		
+		public int getHeuristicWeight(){
+			return heuristicWeight;
+		}
+		public void setHeuristicWeight(int heuristicWeight) {
+			this.heuristicWeight = heuristicWeight;
+		}
+		
+		public int getTotalWeight(){
+			return totalWeight;
+		}
+		public void setTotalWeight(){
+			this.totalWeight = this.weight + this.heuristicWeight;
+		}
+		
+		public void getObject(Tile tile){
+			this.xCoord = tile.getxCoord();
+			this.yCoord = tile.getyCoord();
+			this.accessible = tile.getAccessible();
+			this.heuristicWeight = tile.getHeuristicWeight();
+			this.weight = tile.getWeight();
+			this.totalWeight = tile.getTotalWeight();
+			this.prev = tile.getPrev();
+		}
+		
+		public boolean isTheSame(Tile tile){
+			if (this.xCoord == tile.getxCoord() && this.yCoord == tile.yCoord){
+				return true;
+			}
+			return false;
+		}
 }
