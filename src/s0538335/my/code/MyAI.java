@@ -5,6 +5,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.util.vector.Vector2f;
 
 import lenz.htw.ai4g.ai.AI;
 import lenz.htw.ai4g.ai.Info;
@@ -12,12 +13,12 @@ import s0538335.my.code.Tile;
 
 public class MyAI extends AI {
 
-	private static final int TILE_SIZE = 20;
+	private static final int TILE_SIZE = 10;
 
 	private float acceleration;
-
-	private int rotationTime = 2;
-	private int wishedTime = 4;
+	
+	private static final float BRAKE_ANGLE = (float) 0.8;
+	private static final float PREFFERED_TIME = (float) 0.7;
 
 	private boolean[][] raster = new boolean[info.getWorld().getWidth() / TILE_SIZE][info.getWorld().getHeight() / TILE_SIZE];
 
@@ -42,7 +43,7 @@ public class MyAI extends AI {
 
 	@Override
 	public float getAngularAcceleration() {
-		return seek();
+		return align(seek());
 	}
 
 	@Override
@@ -54,22 +55,19 @@ public class MyAI extends AI {
 
 	@Override
 	public void drawDebugStuff() {
-
-		GL11.glBegin(GL11.GL_QUADS);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE, currentTile.getyCoord() * TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE + TILE_SIZE, currentTile.getyCoord() * TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE + TILE_SIZE, currentTile.getyCoord() * TILE_SIZE + TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE, currentTile.getyCoord() * TILE_SIZE + TILE_SIZE, 0.1f);
-		GL11.glEnd();
-
-		GL11.glBegin(GL11.GL_LINE);
+		for (Tile tile : path) {
+			GL11.glBegin(GL11.GL_QUADS);
+			GL11.glVertex3f(tile.getXCoord(), tile.getYCoord(), 0.1f);
+			GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord(), 0.1f);
+			GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord() + TILE_SIZE, 0.1f);
+			GL11.glVertex3f(tile.getXCoord(), tile.getYCoord() + TILE_SIZE, 0.1f);
+			GL11.glEnd();
+		}
+		
+		GL11.glBegin(GL11.GL_LINES);
 		GL11.glVertex2f(info.getX(), info.getY());
-		GL11.glVertex2f(currentTile.getxCoord() * TILE_SIZE, currentTile.getxCoord() * TILE_SIZE);
-		// System.out.println(counter);
-		// System.out.println(path.get(counter-1).getxCoord() * SIZE);
-		// System.out.println(path.get(counter-1).getxCoord() * SIZE);
+		GL11.glVertex2f(currentTile.getCenterXCoord(), currentTile.getCenterYCoord());
 		GL11.glEnd();
-
 	}
 
 	public void createRaster() {
@@ -97,11 +95,13 @@ public class MyAI extends AI {
 	}
 
 	public void findPath() {
-		Tile startTile = new Tile(TILE_SIZE, matchRaster(Math.round(info.getX() / TILE_SIZE)), matchRaster(Math.round(info.getY() / TILE_SIZE)));
-		startTile.setAccessible(raster[startTile.getxCoord()][startTile.getyCoord()]);
+		System.out.println("x: "+ info.getX() + " y: " + info.getY());
+		System.out.println("x in raster: " + info.getX() /TILE_SIZE + " y in raster: " + info.getY() / TILE_SIZE);
+		Tile startTile = new Tile(TILE_SIZE, matchRaster(info.getX() / TILE_SIZE), matchRaster(info.getY() / TILE_SIZE));
+		startTile.setAccessible(raster[startTile.getXPositionInRaster()][startTile.getYPositionInRaster()]);
 
 		Tile targetTile = new Tile(TILE_SIZE, matchRaster(info.getCurrentCheckpoint().x / TILE_SIZE), matchRaster(info.getCurrentCheckpoint().y / TILE_SIZE));
-		targetTile.setAccessible(raster[targetTile.getxCoord()][targetTile.getyCoord()]);
+		targetTile.setAccessible(raster[targetTile.getXPositionInRaster()][targetTile.getYPositionInRaster()]);
 
 		// first add startTile to openList
 		closeList.clear();
@@ -110,25 +110,25 @@ public class MyAI extends AI {
 
 		while (!openList.isEmpty()) {
 
-			Tile actualTile = findLowestWeight();
-			openList.remove(actualTile);
-			closeList.add(actualTile);
+			Tile currentTile = findLowestWeight();
+			openList.remove(currentTile);
+			closeList.add(currentTile);
 
-			if (actualTile.isTheSame(targetTile)) {
-				targetTile.setPrev(actualTile.getPrev());
+			if (currentTile.hasSamePositionInRaster(targetTile)) {
+				targetTile.setPrev(currentTile.getPrev());
 				break;
 			}
 
-			ArrayList<Tile> neighbours = findNeighbour(actualTile, targetTile);
+			ArrayList<Tile> neighbours = findNeighbour(currentTile, targetTile);
 
 			for (Tile tile : neighbours) {
 				if (tile.getAccessible() && !listContainsTile(closeList, tile)) {
 					if (!listContainsTile(openList, tile)) {
-						tile.setPrev(actualTile);
+						tile.setPrev(currentTile);
 						openList.add(tile);
 					} else if (getEqualTile(openList, tile).getWeight() > tile.getWeight()) {
 						getEqualTile(openList, tile).setWeight(tile.getWeight());
-						getEqualTile(openList, tile).setPrev(actualTile);
+						getEqualTile(openList, tile).setPrev(currentTile);
 						getEqualTile(openList, tile).setTotalWeight();
 					}
 				}
@@ -140,11 +140,11 @@ public class MyAI extends AI {
 	public void storePath(Tile startTile, Tile targetTile) {
 		Tile actualTile = targetTile.clone();
 
-		while (!actualTile.isTheSame(startTile)) {
+		while (!actualTile.hasSamePositionInRaster(startTile)) {
 			path.add(actualTile);
 			actualTile = actualTile.getPrev();
 		}
-		currentTileIndex = 0;
+		currentTileIndex = path.size() - 1;
 		currentTile = path.get(currentTileIndex);
 	}
 
@@ -154,18 +154,18 @@ public class MyAI extends AI {
 		for (int row = -1; row < 2; row++) {
 			for (int col = -1; col < 2; col++) {
 				if ((row == 0 && col == 0)
-						|| actualTile.getxCoord() + row * TILE_SIZE < 0
-						|| actualTile.getyCoord() + col * TILE_SIZE < 0
-						|| actualTile.getxCoord() + row * TILE_SIZE >= info.getWorld().getWidth() / TILE_SIZE 
-						|| actualTile.getyCoord() + col * TILE_SIZE >= info.getWorld().getHeight() / TILE_SIZE) {
+						|| actualTile.getXPositionInRaster() + row * TILE_SIZE < 0
+						|| actualTile.getYPositionInRaster() + col * TILE_SIZE < 0
+						|| actualTile.getXPositionInRaster() + row * TILE_SIZE >= info.getWorld().getWidth() / TILE_SIZE 
+						|| actualTile.getYPositionInRaster() + col * TILE_SIZE >= info.getWorld().getHeight() / TILE_SIZE) {
 					continue;
-				} else if (!raster[actualTile.getxCoord() + row * TILE_SIZE][actualTile.getyCoord() + col * TILE_SIZE]) {
+				} else if (!raster[actualTile.getXPositionInRaster() + row * TILE_SIZE][actualTile.getYPositionInRaster() + col * TILE_SIZE]) {
 					continue;
 				} else {
-					Tile tile = new Tile(TILE_SIZE, actualTile.getxCoord() + row * TILE_SIZE, actualTile.getyCoord() + col * TILE_SIZE);
-					tile.setAccessible(raster[actualTile.getxCoord() + row * TILE_SIZE][actualTile.getyCoord() + col * TILE_SIZE]);
+					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
+					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
 
-					int dist = (int) Math.sqrt(Math.pow(targetTile.getxCoord() - tile.getxCoord(), 2) + Math.pow(targetTile.getyCoord() - tile.getyCoord(), 2));
+					int dist = (int) Math.sqrt(Math.pow(targetTile.getXPositionInRaster() - tile.getXPositionInRaster(), 2) + Math.pow(targetTile.getYPositionInRaster() - tile.getYPositionInRaster(), 2));
 					tile.setHeuristicWeight(dist);
 
 					if (Math.abs(row) == 1 && Math.abs(col) == 1) {
@@ -198,7 +198,7 @@ public class MyAI extends AI {
 
 	public boolean listContainsTile(ArrayList<Tile> list, Tile tile) {
 		for (Tile existingTile : list) {
-			if (tile.getxCoord() == existingTile.getxCoord() && tile.getyCoord() == existingTile.getyCoord()) {
+			if (tile.getXPositionInRaster() == existingTile.getXPositionInRaster() && tile.getYPositionInRaster() == existingTile.getYPositionInRaster()) {
 				return true;
 			}
 		}
@@ -207,45 +207,43 @@ public class MyAI extends AI {
 
 	public Tile getEqualTile(ArrayList<Tile> list, Tile tile) {
 		for (Tile existingTile : list) {
-			if (tile.getxCoord() == existingTile.getxCoord() && tile.getyCoord() == existingTile.getyCoord()) {
+			if (tile.getXPositionInRaster() == existingTile.getXPositionInRaster() && tile.getYPositionInRaster() == existingTile.getYPositionInRaster()) {
 				return existingTile;
 			}
 		}
 		return null;
 	}
 
-	private int matchRaster(int value) {
-		return (value / TILE_SIZE) * TILE_SIZE;
+	private int matchRaster(float value) {
+		return Math.round(value / TILE_SIZE) * TILE_SIZE;
 	}
 
 	// seek to target
 
-	public float seek() {
+	private float align(Vector2f target) {
+		double targetOrientation = Math.atan2(target.y, target.x);
+		float difference = (float) targetOrientation - info.getOrientation();
+		float prefferedRotaionSpeed = difference * info.getMaxAngularAcceleration() / BRAKE_ANGLE;
+		float acceleration = prefferedRotaionSpeed - info.getAngularVelocity() / PREFFERED_TIME;
+		return acceleration;
+	}
 
-		float newOrientation = getNewOrientation(currentTile.getxCoord() * TILE_SIZE, currentTile.getxCoord() * TILE_SIZE);
+	private Vector2f seek() {
+		nextTileOrNewPath();
+		return new Vector2f(currentTile.getCenterXCoord() - info.getX(), currentTile.getCenterYCoord() - info.getY());
+	}
 
-		float difference = newOrientation - info.getOrientation();
-
-		float preferedRotarySpeed = difference * info.getMaxAngularVelocity() / rotationTime;
-		float rotaryAcceleration = (preferedRotarySpeed - info.getAngularVelocity()) / wishedTime;
-
-		if (currentTile.contains(info.getX(), info.getY()) && currentTile.contains(info.getCurrentCheckpoint().getX(), info.getCurrentCheckpoint().getY())) {
-			findPath();
-		} else if (currentTile.contains(info.getX(), info.getY())) {
-			currentTileIndex++;
-			currentTile = path.get(currentTileIndex);
+	private void nextTileOrNewPath() {
+		if (currentTile.contains(info.getX(), info.getY())) {
+			if (currentTileIndex == 0) {
+				System.out.println("Pfad neu berechnen");
+				findPath();
+			} else {
+				System.out.println("Neues Teilstück wird angefahren");
+				currentTileIndex--;
+				currentTile = path.get(currentTileIndex);
+			}
 		}
-		
-		GL11.glBegin(GL11.GL_QUADS);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE, currentTile.getyCoord() * TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE + TILE_SIZE, currentTile.getyCoord() * TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE + TILE_SIZE, currentTile.getyCoord() * TILE_SIZE + TILE_SIZE, 0.1f);
-		GL11.glVertex3f(currentTile.getxCoord() * TILE_SIZE, currentTile.getyCoord() * TILE_SIZE + TILE_SIZE, 0.1f);
-		GL11.glEnd();
-		
-		return rotaryAcceleration;
-		
-
 	}
 
 	// Orientation to the target

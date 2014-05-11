@@ -5,8 +5,8 @@ import java.awt.geom.Rectangle2D;
 public class Tile {
 
 	private int size;
-	private int x;
-	private int y;
+	private int xPositionInRaster;
+	private int yPositionInRaster;
 	private Tile prev;
 	private int weight;
 	private int heuristicWeight;
@@ -14,19 +14,35 @@ public class Tile {
 	private boolean accessible;
 	private Rectangle2D.Float asRectangle;
 
-	public Tile(int size, int x, int y) {
+	public Tile(int size, int xPositionInRaster, int yPositionInRaster) {
 		this.size = size;
-		this.x = x;
-		this.y = y;
-		this.asRectangle = new Rectangle2D.Float(x * size, y * size, size, size);
+		this.xPositionInRaster = xPositionInRaster;
+		this.yPositionInRaster = yPositionInRaster;
+		this.asRectangle = new Rectangle2D.Float(xPositionInRaster * size, yPositionInRaster * size, size, size);
 	}
 	
-	public int getxCoord() {
-		return x;
+	public int getXPositionInRaster() {
+		return xPositionInRaster;
 	}
 
-	public int getyCoord() {
-		return y;
+	public int getYPositionInRaster() {
+		return yPositionInRaster;
+	}
+	
+	public float getXCoord() {
+		return (xPositionInRaster * size);
+	}
+	
+	public float getYCoord() {
+		return (yPositionInRaster * size);
+	}
+	
+	public float getCenterXCoord() {
+		return getXCoord() + (size / 2);
+	}
+	
+	public float getCenterYCoord() {
+		return getYCoord() + (size / 2);
 	}
 
 	public Tile getPrev() {
@@ -70,7 +86,7 @@ public class Tile {
 	}
 
 	public Tile clone() {
-		Tile tile = new Tile(size, x, y);
+		Tile tile = new Tile(size, xPositionInRaster, yPositionInRaster);
 		tile.setPrev(prev);
 		tile.setAccessible(accessible);
 		tile.setHeuristicWeight(heuristicWeight);
@@ -78,8 +94,8 @@ public class Tile {
 		return tile;
 	}
 
-	public boolean isTheSame(Tile tile) {
-		if (this.x == tile.getxCoord() && this.y == tile.y) {
+	public boolean hasSamePositionInRaster(Tile tile) {
+		if (this.xPositionInRaster == tile.getXPositionInRaster() && this.yPositionInRaster == tile.yPositionInRaster) {
 			return true;
 		}
 		return false;
