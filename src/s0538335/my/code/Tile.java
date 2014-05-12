@@ -94,6 +94,14 @@ public class Tile {
 		return tile;
 	}
 
+	public int getSize() {
+		return size;
+	}
+
+	public void setSize(int size) {
+		this.size = size;
+	}
+
 	public boolean hasSamePositionInRaster(Tile tile) {
 		if (this.xPositionInRaster == tile.getXPositionInRaster() && this.yPositionInRaster == tile.yPositionInRaster) {
 			return true;
@@ -103,6 +111,10 @@ public class Tile {
 	
 	public boolean contains(double x, double y) {
 		return asRectangle.contains(x, y);
+	}
+
+	public boolean intersects(Rectangle2D carRectangle) {
+		return asRectangle.intersects(carRectangle);
 	}
 	
 }
