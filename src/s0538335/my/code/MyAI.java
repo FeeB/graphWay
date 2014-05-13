@@ -2,7 +2,6 @@ package s0538335.my.code;
 
 import java.awt.Polygon;
 import java.awt.geom.Rectangle2D;
-import java.awt.geom.Rectangle2D.Float;
 import java.util.ArrayList;
 
 import org.lwjgl.opengl.GL11;
@@ -15,9 +14,6 @@ import s0538335.my.code.Tile;
 public class MyAI extends AI {
 
 	private static final int TILE_SIZE = 10;
-
-	private float acceleration;
-	
 	private static final float BRAKE_ANGLE = 0.4f;
 	private static final float PREFFERED_TIME = 0.7f;
 
@@ -30,16 +26,27 @@ public class MyAI extends AI {
 	private int currentTileIndex;
 	private Tile currentTile;
 
+	private Tile targetTile;
+	private Tile startTile;
+
+	private Rectangle2D carRectangle;
+	private float difference;
+
 	public MyAI(Info arg0) {
 		super(arg0);
-		acceleration = info.getMaxAcceleration();
 		createRaster();
 		findPath();
 	}
 
 	@Override
 	public float getAcceleration() {
-		return acceleration;
+//		System.out.println(difference);
+		if (Math.abs(difference) > 0.4) {
+			System.out.println("LANGSSAAAM");
+			return 3;
+		} else {
+			return info.getMaxAcceleration();			
+		}
 	}
 
 	@Override
@@ -57,21 +64,54 @@ public class MyAI extends AI {
 	@Override
 	public void drawDebugStuff() {
 		
-		for (Tile tile : path) {
-			GL11.glBegin(GL11.GL_QUADS);
-			GL11.glVertex3f(tile.getXCoord(), tile.getYCoord(), 0.1f);
-			GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord(), 0.1f);
-			GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord() + TILE_SIZE, 0.1f);
-			GL11.glVertex3f(tile.getXCoord(), tile.getYCoord() + TILE_SIZE, 0.1f);
-			GL11.glEnd();
+		drawTile(startTile, 0, 0, 1);
+
+		for (int i = 0; i < path.size(); i++) {
+			Tile tile = path.get(i);
+			if (i > currentTileIndex) {
+				drawTile(tile, 1, 0, 0);
+			} else {
+				drawTile(tile, 0, 1, 0);
+			}
 		}
 		
-		GL11.glBegin(GL11.GL_LINES);
-		GL11.glVertex2f(info.getX(), info.getY());
-		GL11.glVertex2f(currentTile.getCenterXCoord(), currentTile.getCenterYCoord());
+		drawTile(targetTile, 1.0f, 0, 1.0f);
+		
+		GL11.glBegin(GL11.GL_QUADS);
+		GL11.glVertex3d(info.getCurrentCheckpoint().x, info.getCurrentCheckpoint().y, 0.1f);
+		GL11.glVertex3d(info.getCurrentCheckpoint().x + TILE_SIZE, info.getCurrentCheckpoint().y, 0.1f);
+		GL11.glVertex3d(info.getCurrentCheckpoint().x + TILE_SIZE, info.getCurrentCheckpoint().y + TILE_SIZE, 0.1f);
+		GL11.glVertex3d(info.getCurrentCheckpoint().x, info.getCurrentCheckpoint().y + TILE_SIZE, 0.1f);
 		GL11.glEnd();
+		
+
+		GL11.glColor3f(1.0f, 1.0f, 1.0f);
+		GL11.glBegin(GL11.GL_LINES);
+		GL11.glVertex3f(info.getX(), info.getY(), 0.2f);
+		GL11.glVertex3f(currentTile.getCenterXCoord(), currentTile.getCenterYCoord(), 0.2f);
+		GL11.glEnd();
+		
+		if (carRectangle != null) {
+			GL11.glBegin(GL11.GL_QUADS);
+			GL11.glVertex3d(carRectangle.getX(), carRectangle.getY(), 0.1f);
+			GL11.glVertex3d(carRectangle.getX() + carRectangle.getWidth(), carRectangle.getY(), 0.1f);
+			GL11.glVertex3d(carRectangle.getX() + carRectangle.getWidth(), carRectangle.getY() + carRectangle.getWidth(), 0.1f);
+			GL11.glVertex3d(carRectangle.getX(), carRectangle.getY() + carRectangle.getWidth(), 0.1f);
+			GL11.glEnd();
+		}
+
 	}
 
+	private void drawTile(Tile tile, float red, float green, float blue) {
+		GL11.glColor3f(red, green, blue);				
+		GL11.glBegin(GL11.GL_QUADS);
+		GL11.glVertex3f(tile.getXCoord(), tile.getYCoord(), 0.1f);
+		GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord(), 0.1f);
+		GL11.glVertex3f(tile.getXCoord() + TILE_SIZE, tile.getYCoord() + TILE_SIZE, 0.1f);
+		GL11.glVertex3f(tile.getXCoord(), tile.getYCoord() + TILE_SIZE, 0.1f);
+		GL11.glEnd();
+	}
+	
 	public void createRaster() {
 
 		Polygon[] obstacles = info.getWorld().getObstacles();
@@ -102,20 +142,16 @@ public class MyAI extends AI {
 		System.out.println("x: "+ info.getX() + " y: " + info.getY());
 		System.out.println("x in raster: " + info.getX() /TILE_SIZE + " y in raster: " + info.getY() / TILE_SIZE);
 		System.out.println(raster.length);
-		StartTargetTile startTile = new StartTargetTile(TILE_SIZE, matchRaster(info.getX() / TILE_SIZE), matchRaster(info.getY() / TILE_SIZE));
-		startTile.setXCoord((int)info.getX());
-		startTile.setYCoord((int) info.getY());
+		startTile = new Tile(TILE_SIZE, matchRaster(info.getX() / TILE_SIZE), matchRaster(info.getY() / TILE_SIZE));
 		startTile.setAccessible(raster[startTile.getXPositionInRaster()][startTile.getYPositionInRaster()]);
 
-		StartTargetTile targetTile = new StartTargetTile(TILE_SIZE, matchRaster(info.getCurrentCheckpoint().x / TILE_SIZE), matchRaster(info.getCurrentCheckpoint().y / TILE_SIZE));
+		targetTile = new Tile(TILE_SIZE, matchRaster(info.getCurrentCheckpoint().x / TILE_SIZE), matchRaster(info.getCurrentCheckpoint().y / TILE_SIZE));
 		System.out.println("x in coord: " + info.getCurrentCheckpoint().x + " y in coord: " + info.getCurrentCheckpoint().y);
 		System.out.println("target x: " + targetTile.getXPositionInRaster());
 		System.out.println("target y: " + targetTile.getYPositionInRaster());
 		System.out.println("without match x: " + info.getCurrentCheckpoint().x / TILE_SIZE + " without match y: " + info.getCurrentCheckpoint().y / TILE_SIZE);
 		System.out.println("raster x länge: " + raster.length);
 		System.out.println("raster y länge: " + raster[1].length);
-		targetTile.setXCoord(info.getCurrentCheckpoint().x);
-		targetTile.setYCoord(info.getCurrentCheckpoint().y);
 		targetTile.setAccessible(raster[targetTile.getXPositionInRaster()][targetTile.getYPositionInRaster()]);
 
 		// first add startTile to openList
@@ -154,20 +190,18 @@ public class MyAI extends AI {
 		storePath(startTile, targetTile);
 	}
 
-	public void storePath(StartTargetTile startTile, StartTargetTile targetTile) {
-		Tile actualTile = null;
+	public void storePath(Tile startTile, Tile targetTile) {
+		Tile actualTile = targetTile.clone();
 		
 		if (targetTile.hasSamePositionInRaster(startTile)){
 			path.add(targetTile);
-		}else{
-			path.add(targetTile);
-			actualTile = targetTile.getPrev().clone();
 		}
 
 		while (!actualTile.hasSamePositionInRaster(startTile)) {
 			path.add(actualTile);
 			actualTile = actualTile.getPrev();
 		}
+		
 		currentTileIndex = path.size() - 1;
 		currentTile = path.get(currentTileIndex);
 	}
@@ -247,20 +281,20 @@ public class MyAI extends AI {
 
 	private float align(Vector2f target) {
 		double targetOrientation = Math.atan2(target.y, target.x);
-		float difference = (float) targetOrientation - info.getOrientation();
-		float prefferedRotaionSpeed = difference * info.getMaxAngularAcceleration() / BRAKE_ANGLE;
-		float acceleration = prefferedRotaionSpeed - info.getAngularVelocity() / PREFFERED_TIME;
+		difference = (float) targetOrientation - info.getOrientation();
+		float preferredRotaionSpeed = difference * info.getMaxAngularAcceleration() / BRAKE_ANGLE;
+		float acceleration = preferredRotaionSpeed - info.getAngularVelocity() / PREFFERED_TIME;
 		return acceleration;
 	}
 
 	private Vector2f seek() {
 		nextTileOrNewPath();
-		return new Vector2f(currentTile.getCenterXCoord() - info.getX(), currentTile.getCenterYCoord() - info.getY());
+		return new Vector2f(info.getCurrentCheckpoint().x - info.getX(), info.getCurrentCheckpoint().y - info.getY());
 	}
 
 	private void nextTileOrNewPath() {
-		Rectangle2D carRectangle = new Rectangle2D.Float(info.getX(), info.getY(), TILE_SIZE, TILE_SIZE);
-		
+		carRectangle = new Rectangle2D.Float(info.getX() - TILE_SIZE / 2, info.getY() - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
+
 		if (currentTile.intersects(carRectangle)) {
 			if (currentTileIndex == 0) {
 				System.out.println("Pfad neu berechnen");

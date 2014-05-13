@@ -103,7 +103,7 @@ public class Tile {
 	}
 
 	public boolean hasSamePositionInRaster(Tile tile) {
-		if (this.xPositionInRaster == tile.getXPositionInRaster() && this.yPositionInRaster == tile.yPositionInRaster) {
+		if (this.xPositionInRaster == tile.getXPositionInRaster() && this.yPositionInRaster == tile.getYPositionInRaster()) {
 			return true;
 		}
 		return false;
