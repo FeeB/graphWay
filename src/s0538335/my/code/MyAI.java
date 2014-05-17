@@ -85,7 +85,7 @@ public class MyAI extends AI {
 		GL11.glEnd();
 		
 
-		GL11.glColor3f(1.0f, 1.0f, 1.0f);
+		GL11.glColor3f(0, 1.0f, 1.0f);
 		GL11.glBegin(GL11.GL_LINES);
 		GL11.glVertex3f(info.getX(), info.getY(), 0.2f);
 		GL11.glVertex3f(currentTile.getCenterXCoord(), currentTile.getCenterYCoord(), 0.2f);
@@ -142,10 +142,10 @@ public class MyAI extends AI {
 		System.out.println("x: "+ info.getX() + " y: " + info.getY());
 		System.out.println("x in raster: " + info.getX() /TILE_SIZE + " y in raster: " + info.getY() / TILE_SIZE);
 		System.out.println(raster.length);
-		startTile = new Tile(TILE_SIZE, matchRaster(info.getX() / TILE_SIZE), matchRaster(info.getY() / TILE_SIZE));
+		startTile = new Tile(TILE_SIZE, (int) (info.getX() / TILE_SIZE), (int) (info.getY() / TILE_SIZE));
 		startTile.setAccessible(raster[startTile.getXPositionInRaster()][startTile.getYPositionInRaster()]);
 
-		targetTile = new Tile(TILE_SIZE, matchRaster(info.getCurrentCheckpoint().x / TILE_SIZE), matchRaster(info.getCurrentCheckpoint().y / TILE_SIZE));
+		targetTile = new Tile(TILE_SIZE, info.getCurrentCheckpoint().x / TILE_SIZE, info.getCurrentCheckpoint().y / TILE_SIZE);
 		System.out.println("x in coord: " + info.getCurrentCheckpoint().x + " y in coord: " + info.getCurrentCheckpoint().y);
 		System.out.println("target x: " + targetTile.getXPositionInRaster());
 		System.out.println("target y: " + targetTile.getYPositionInRaster());
@@ -155,8 +155,15 @@ public class MyAI extends AI {
 		targetTile.setAccessible(raster[targetTile.getXPositionInRaster()][targetTile.getYPositionInRaster()]);
 
 		// first add startTile to openList
+		path.clear();
 		closeList.clear();
 		openList.clear();
+		if (closeList.isEmpty()){
+			System.out.println("closelist is clear");
+		}
+		if (openList.isEmpty()){
+			System.out.println("openlist is clear");
+		}
 		openList.add(startTile);
 
 		while (!openList.isEmpty()) {
@@ -165,7 +172,7 @@ public class MyAI extends AI {
 			openList.remove(currentTile);
 			closeList.add(currentTile);
 
-			if (currentTile.hasSamePositionInRaster(targetTile)) {
+			if (currentTile.contains(info.getCurrentCheckpoint().getX(), info.getCurrentCheckpoint().getY())) {
 				targetTile.setPrev(currentTile.getPrev());
 				break;
 			}
@@ -223,7 +230,7 @@ public class MyAI extends AI {
 					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
 					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
 
-					int dist = (int) Math.sqrt(Math.pow(targetTile.getXPositionInRaster() - tile.getXPositionInRaster(), 2) + Math.pow(targetTile.getYPositionInRaster() - tile.getYPositionInRaster(), 2));
+					int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
 					tile.setHeuristicWeight(dist);
 
 					if (Math.abs(row) == 1 && Math.abs(col) == 1) {
@@ -272,11 +279,6 @@ public class MyAI extends AI {
 		return null;
 	}
 
-	private int matchRaster(float value) {
-		int roundValue = Math.round(value / TILE_SIZE);
-		return roundValue * TILE_SIZE;
-	}
-
 	// seek to target
 
 	private float align(Vector2f target) {
@@ -289,11 +291,20 @@ public class MyAI extends AI {
 
 	private Vector2f seek() {
 		nextTileOrNewPath();
-		return new Vector2f(info.getCurrentCheckpoint().x - info.getX(), info.getCurrentCheckpoint().y - info.getY());
+		float x;
+		float y;
+		if (currentTile.getPrev() != null){
+			x = (currentTile.getCenterXCoord() - info.getX()) + (currentTile.getPrev().getCenterXCoord() - info.getX());
+			y = (currentTile.getCenterYCoord() - info.getY()) + (currentTile.getPrev().getCenterYCoord() - info.getY());
+		} else {
+			x = (currentTile.getCenterXCoord() - info.getX());
+			y = (currentTile.getCenterYCoord() - info.getY());
+		}
+		return new Vector2f(x, y);
 	}
 
 	private void nextTileOrNewPath() {
-		carRectangle = new Rectangle2D.Float(info.getX() - TILE_SIZE / 2, info.getY() - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
+		carRectangle = new Rectangle2D.Float(info.getX() - TILE_SIZE / 1.5f, info.getY() - TILE_SIZE / 1.5f, TILE_SIZE * 1.5f, TILE_SIZE * 1.5f);
 
 		if (currentTile.intersects(carRectangle)) {
 			if (currentTileIndex == 0) {
