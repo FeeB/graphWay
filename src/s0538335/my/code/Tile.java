@@ -1,5 +1,6 @@
 package s0538335.my.code;
 
+import java.awt.Point;
 import java.awt.geom.Rectangle2D;
 
 public class Tile {
@@ -43,6 +44,10 @@ public class Tile {
 	
 	public float getCenterYCoord() {
 		return getYCoord() + (size / 2);
+	}
+
+	public Point getCenterPoint() {
+		return new Point(Math.round(getCenterXCoord()), Math.round(getCenterYCoord()));
 	}
 
 	public Tile getPrev() {

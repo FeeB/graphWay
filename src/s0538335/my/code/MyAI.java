@@ -1,19 +1,26 @@
 package s0538335.my.code;
 
+import java.awt.Point;
 import java.awt.Polygon;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 
 import org.lwjgl.opengl.GL11;
-import org.lwjgl.util.vector.Vector2f;
 
 import lenz.htw.ai4g.ai.AI;
 import lenz.htw.ai4g.ai.Info;
 import s0538335.my.code.Tile;
 
 public class MyAI extends AI {
-
-	private static final int TILE_SIZE = 10;
+	
+	private static final boolean DEBUG = true;
+	
+	private static final float BRAKE_THRESHOLD = 0.4f;
+	private static final int BRAKE_ACCELERATION = 3;
+	
+	private static final int TILE_SIZE = 20;
+	private static final float CAR_SIZE = TILE_SIZE * 1.5f;
+	
 	private static final float BRAKE_ANGLE = 0.4f;
 	private static final float PREFFERED_TIME = 0.7f;
 
@@ -32,18 +39,23 @@ public class MyAI extends AI {
 	private Rectangle2D carRectangle;
 	private float difference;
 
-	public MyAI(Info arg0) {
-		super(arg0);
+	public MyAI(Info info) {
+		super(info);
 		createRaster();
-		findPath();
+		findAndStorePath();
 	}
 
+	private void findAndStorePath() {
+		findPath();
+		storePath();
+		setStartTile();
+	}
+	
 	@Override
 	public float getAcceleration() {
-//		System.out.println(difference);
-		if (Math.abs(difference) > 0.4) {
+		if (Math.abs(difference) > BRAKE_THRESHOLD) {
 			System.out.println("LANGSSAAAM");
-			return 3;
+			return BRAKE_ACCELERATION;
 		} else {
 			return info.getMaxAcceleration();			
 		}
@@ -51,7 +63,13 @@ public class MyAI extends AI {
 
 	@Override
 	public float getAngularAcceleration() {
-		return align(seek());
+		nextTileOrNewPath();
+
+		if (currentTileIndex == 0) {
+			return align(info.getCurrentCheckpoint());
+		} else {
+			return align(currentTile.getCenterPoint());
+		}
 	}
 
 	@Override
@@ -63,6 +81,9 @@ public class MyAI extends AI {
 
 	@Override
 	public void drawDebugStuff() {
+		if (!DEBUG) {
+			return;
+		}
 		
 		drawTile(startTile, 0, 0, 1);
 
@@ -74,23 +95,22 @@ public class MyAI extends AI {
 				drawTile(tile, 0, 1, 0);
 			}
 		}
-		
+
 		drawTile(targetTile, 1.0f, 0, 1.0f);
-		
+
 		GL11.glBegin(GL11.GL_QUADS);
 		GL11.glVertex3d(info.getCurrentCheckpoint().x, info.getCurrentCheckpoint().y, 0.1f);
 		GL11.glVertex3d(info.getCurrentCheckpoint().x + TILE_SIZE, info.getCurrentCheckpoint().y, 0.1f);
 		GL11.glVertex3d(info.getCurrentCheckpoint().x + TILE_SIZE, info.getCurrentCheckpoint().y + TILE_SIZE, 0.1f);
 		GL11.glVertex3d(info.getCurrentCheckpoint().x, info.getCurrentCheckpoint().y + TILE_SIZE, 0.1f);
 		GL11.glEnd();
-		
 
 		GL11.glColor3f(0, 1.0f, 1.0f);
 		GL11.glBegin(GL11.GL_LINES);
 		GL11.glVertex3f(info.getX(), info.getY(), 0.2f);
 		GL11.glVertex3f(currentTile.getCenterXCoord(), currentTile.getCenterYCoord(), 0.2f);
 		GL11.glEnd();
-		
+
 		if (carRectangle != null) {
 			GL11.glBegin(GL11.GL_QUADS);
 			GL11.glVertex3d(carRectangle.getX(), carRectangle.getY(), 0.1f);
@@ -99,7 +119,6 @@ public class MyAI extends AI {
 			GL11.glVertex3d(carRectangle.getX(), carRectangle.getY() + carRectangle.getWidth(), 0.1f);
 			GL11.glEnd();
 		}
-
 	}
 
 	private void drawTile(Tile tile, float red, float green, float blue) {
@@ -128,12 +147,6 @@ public class MyAI extends AI {
 					}
 
 				}
-				// GL11.glBegin(GL11.GL_QUADS);
-				// GL11.glVertex3f(x*SIZE, y*SIZE,0.1f);
-				// GL11.glVertex3f(x*SIZE + SIZE, y*SIZE,0.1f);
-				// GL11.glVertex3f(x*SIZE + SIZE, y*SIZE + SIZE,0.1f);
-				// GL11.glVertex3f(x*SIZE, y*SIZE + SIZE,0.1f);
-				// GL11.glEnd();
 			}
 		}
 	}
@@ -194,21 +207,21 @@ public class MyAI extends AI {
 		}
 		System.out.println(startTile.getXCoord());
 		System.out.println(startTile.getYCoord());
-		storePath(startTile, targetTile);
 	}
 
-	public void storePath(Tile startTile, Tile targetTile) {
-		Tile actualTile = targetTile.clone();
-		
+	public void storePath() {
 		if (targetTile.hasSamePositionInRaster(startTile)){
 			path.add(targetTile);
 		}
 
-		while (!actualTile.hasSamePositionInRaster(startTile)) {
-			path.add(actualTile);
-			actualTile = actualTile.getPrev();
+		Tile tile = targetTile.clone();
+		while (!tile.hasSamePositionInRaster(startTile)) {
+			path.add(tile);
+			tile = tile.getPrev();
 		}
-		
+	}
+
+	private void setStartTile() {
 		currentTileIndex = path.size() - 1;
 		currentTile = path.get(currentTileIndex);
 	}
@@ -281,35 +294,26 @@ public class MyAI extends AI {
 
 	// seek to target
 
-	private float align(Vector2f target) {
-		double targetOrientation = Math.atan2(target.y, target.x);
-		difference = (float) targetOrientation - info.getOrientation();
+	private float align(Point target) {
+		float targetOrientation = (float) Math.atan2(target.y - info.getY(), target.x - info.getX());
+		
+		difference = targetOrientation - info.getOrientation();
+		if (Math.abs(difference) > Math.PI){
+			difference = difference * -1;
+		}
 		float preferredRotaionSpeed = difference * info.getMaxAngularAcceleration() / BRAKE_ANGLE;
 		float acceleration = preferredRotaionSpeed - info.getAngularVelocity() / PREFFERED_TIME;
 		return acceleration;
 	}
 
-	private Vector2f seek() {
-		nextTileOrNewPath();
-		float x;
-		float y;
-		if (currentTile.getPrev() != null){
-			x = (currentTile.getCenterXCoord() - info.getX()) + (currentTile.getPrev().getCenterXCoord() - info.getX());
-			y = (currentTile.getCenterYCoord() - info.getY()) + (currentTile.getPrev().getCenterYCoord() - info.getY());
-		} else {
-			x = (currentTile.getCenterXCoord() - info.getX());
-			y = (currentTile.getCenterYCoord() - info.getY());
-		}
-		return new Vector2f(x, y);
-	}
-
 	private void nextTileOrNewPath() {
-		carRectangle = new Rectangle2D.Float(info.getX() - TILE_SIZE / 1.5f, info.getY() - TILE_SIZE / 1.5f, TILE_SIZE * 1.5f, TILE_SIZE * 1.5f);
+		
+		carRectangle = new Rectangle2D.Float(info.getX() - CAR_SIZE / 2, info.getY() - CAR_SIZE / 2f, CAR_SIZE, CAR_SIZE);
 
 		if (currentTile.intersects(carRectangle)) {
 			if (currentTileIndex == 0) {
 				System.out.println("Pfad neu berechnen");
-				findPath();
+				findAndStorePath();
 			} else {
 				System.out.println("Neues Teilstück wird angefahren");
 				currentTileIndex--;
@@ -317,14 +321,4 @@ public class MyAI extends AI {
 			}
 		}
 	}
-
-	// Orientation to the target
-
-	public float getNewOrientation(float x, float y) {
-		float distanceX = x - info.getX();
-		float distanceY = y - info.getY();
-		float newOrientation = (float) Math.atan2(distanceY, distanceX);
-		return newOrientation;
-	}
-
 }
