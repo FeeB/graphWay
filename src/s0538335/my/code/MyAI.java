@@ -18,8 +18,8 @@ public class MyAI extends AI {
 	private static final float BRAKE_THRESHOLD = 0.4f;
 	private static final int BRAKE_ACCELERATION = 3;
 	
-	private static final int TILE_SIZE = 20;
-	private static final float CAR_SIZE = TILE_SIZE * 1.5f;
+	private static final int TILE_SIZE = 10;
+	private static final float CAR_SIZE = TILE_SIZE * 4f;
 	
 	private static final float BRAKE_ANGLE = 0.4f;
 	private static final float PREFFERED_TIME = 0.7f;
@@ -54,7 +54,7 @@ public class MyAI extends AI {
 	@Override
 	public float getAcceleration() {
 		if (Math.abs(difference) > BRAKE_THRESHOLD) {
-			System.out.println("LANGSSAAAM");
+//			System.out.println("LANGSSAAAM");
 			return BRAKE_ACCELERATION;
 		} else {
 			return info.getMaxAcceleration();			
@@ -134,8 +134,8 @@ public class MyAI extends AI {
 	public void createRaster() {
 
 		Polygon[] obstacles = info.getWorld().getObstacles();
-		System.out.println(info.getWorld().getHeight());
-		System.out.println(info.getWorld().getWidth());
+//		System.out.println(info.getWorld().getHeight());
+//		System.out.println(info.getWorld().getWidth());
 
 		for (int x = 0; x < info.getWorld().getWidth() / TILE_SIZE; x++) {
 			for (int y = 0; y < info.getWorld().getHeight() / TILE_SIZE; y++) {
@@ -152,31 +152,31 @@ public class MyAI extends AI {
 	}
 
 	public void findPath() {
-		System.out.println("x: "+ info.getX() + " y: " + info.getY());
-		System.out.println("x in raster: " + info.getX() /TILE_SIZE + " y in raster: " + info.getY() / TILE_SIZE);
-		System.out.println(raster.length);
+//		System.out.println("x: "+ info.getX() + " y: " + info.getY());
+//		System.out.println("x in raster: " + info.getX() /TILE_SIZE + " y in raster: " + info.getY() / TILE_SIZE);
+//		System.out.println(raster.length);
 		startTile = new Tile(TILE_SIZE, (int) (info.getX() / TILE_SIZE), (int) (info.getY() / TILE_SIZE));
 		startTile.setAccessible(raster[startTile.getXPositionInRaster()][startTile.getYPositionInRaster()]);
 
 		targetTile = new Tile(TILE_SIZE, info.getCurrentCheckpoint().x / TILE_SIZE, info.getCurrentCheckpoint().y / TILE_SIZE);
-		System.out.println("x in coord: " + info.getCurrentCheckpoint().x + " y in coord: " + info.getCurrentCheckpoint().y);
-		System.out.println("target x: " + targetTile.getXPositionInRaster());
-		System.out.println("target y: " + targetTile.getYPositionInRaster());
-		System.out.println("without match x: " + info.getCurrentCheckpoint().x / TILE_SIZE + " without match y: " + info.getCurrentCheckpoint().y / TILE_SIZE);
-		System.out.println("raster x länge: " + raster.length);
-		System.out.println("raster y länge: " + raster[1].length);
+//		System.out.println("x in coord: " + info.getCurrentCheckpoint().x + " y in coord: " + info.getCurrentCheckpoint().y);
+//		System.out.println("target x: " + targetTile.getXPositionInRaster());
+//		System.out.println("target y: " + targetTile.getYPositionInRaster());
+//		System.out.println("without match x: " + info.getCurrentCheckpoint().x / TILE_SIZE + " without match y: " + info.getCurrentCheckpoint().y / TILE_SIZE);
+//		System.out.println("raster x länge: " + raster.length);
+//		System.out.println("raster y länge: " + raster[1].length);
 		targetTile.setAccessible(raster[targetTile.getXPositionInRaster()][targetTile.getYPositionInRaster()]);
 
 		// first add startTile to openList
 		path.clear();
 		closeList.clear();
 		openList.clear();
-		if (closeList.isEmpty()){
-			System.out.println("closelist is clear");
-		}
-		if (openList.isEmpty()){
-			System.out.println("openlist is clear");
-		}
+//		if (closeList.isEmpty()){
+////			System.out.println("closelist is clear");
+//		}
+//		if (openList.isEmpty()){
+//			System.out.println("openlist is clear");
+//		}
 		openList.add(startTile);
 
 		while (!openList.isEmpty()) {
@@ -207,14 +207,26 @@ public class MyAI extends AI {
 		}
 		System.out.println(startTile.getXCoord());
 		System.out.println(startTile.getYCoord());
+		System.out.println(targetTile.getXCoord());
+		System.out.println(targetTile.getYCoord());
 	}
 
 	public void storePath() {
+		
+		System.out.println("start in path " + startTile.getXCoord());
+		System.out.println("start in path " + startTile.getYCoord());
+		System.out.println("target in path " + targetTile.getXCoord());
+		System.out.println("target in path " + targetTile.getYCoord());
+		
 		if (targetTile.hasSamePositionInRaster(startTile)){
 			path.add(targetTile);
 		}
 
 		Tile tile = targetTile.clone();
+		System.out.println("tile in path " + tile.getXCoord());
+		System.out.println("tile in path " + tile.getYCoord());
+
+		
 		while (!tile.hasSamePositionInRaster(startTile)) {
 			path.add(tile);
 			tile = tile.getPrev();
@@ -237,20 +249,30 @@ public class MyAI extends AI {
 						|| actualTile.getXPositionInRaster() + row >= info.getWorld().getWidth() / TILE_SIZE 
 						|| actualTile.getYPositionInRaster() + col >= info.getWorld().getHeight() / TILE_SIZE) {
 					continue;
-				} else if (!raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]) {
+				} else if (!raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]){
 					continue;
-				} else {
+				} else if(!raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col + 1] ||
+					!raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col - 1] ||
+					!raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col + 1] ||
+					!raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col - 1]) {
+					
 					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
 					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
 
 					int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
 					tile.setHeuristicWeight(dist);
+					tile.setWeight(100);
 
-					if (Math.abs(row) == 1 && Math.abs(col) == 1) {
-						tile.setWeight(1);
-					} else {
-						tile.setWeight(1);
-					}
+					tile.setTotalWeight();
+
+					tiles.add(tile);
+				}else{
+					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
+					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
+
+					int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
+					tile.setHeuristicWeight(dist);
+					tile.setWeight(1);
 
 					tile.setTotalWeight();
 
@@ -312,10 +334,10 @@ public class MyAI extends AI {
 
 		if (currentTile.intersects(carRectangle)) {
 			if (currentTileIndex == 0) {
-				System.out.println("Pfad neu berechnen");
+//				System.out.println("Pfad neu berechnen");
 				findAndStorePath();
 			} else {
-				System.out.println("Neues Teilstück wird angefahren");
+//				System.out.println("Neues Teilstück wird angefahren");
 				currentTileIndex--;
 				currentTile = path.get(currentTileIndex);
 			}
