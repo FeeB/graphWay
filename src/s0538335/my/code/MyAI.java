@@ -13,7 +13,7 @@ import s0538335.my.code.Tile;
 
 public class MyAI extends AI {
 	
-	private static final boolean DEBUG = true;
+	private static final boolean DEBUG = false;
 	
 	private static final float BRAKE_THRESHOLD = 0.4f;
 	private static final int BRAKE_ACCELERATION = 3;
@@ -205,10 +205,10 @@ public class MyAI extends AI {
 				}
 			}
 		}
-		System.out.println(startTile.getXCoord());
-		System.out.println(startTile.getYCoord());
-		System.out.println(targetTile.getXCoord());
-		System.out.println(targetTile.getYCoord());
+//		System.out.println(startTile.getXCoord());
+//		System.out.println(startTile.getYCoord());
+//		System.out.println(targetTile.getXCoord());
+//		System.out.println(targetTile.getYCoord());
 	}
 
 	public void storePath() {
@@ -226,7 +226,6 @@ public class MyAI extends AI {
 		System.out.println("tile in path " + tile.getXCoord());
 		System.out.println("tile in path " + tile.getYCoord());
 
-		
 		while (!tile.hasSamePositionInRaster(startTile)) {
 			path.add(tile);
 			tile = tile.getPrev();
@@ -251,37 +250,41 @@ public class MyAI extends AI {
 					continue;
 				} else if (!raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]){
 					continue;
-				} else if(!raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col + 1] ||
-					!raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col - 1] ||
-					!raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col + 1] ||
-					!raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col - 1]) {
-					
-					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
-					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
+				} else if (actualTile.getXPositionInRaster() + row > 0 
+						&& actualTile.getYPositionInRaster() + col > 0
+						&& actualTile.getXPositionInRaster() + row < info.getWorld().getWidth() / TILE_SIZE 
+						&& actualTile.getYPositionInRaster() + col < info.getWorld().getHeight() / TILE_SIZE) {
+					if (!raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col + 1]
+							|| !raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col - 1]
+							|| !raster[actualTile.getXPositionInRaster() + row - 1][actualTile.getYPositionInRaster() + col + 1]
+							|| !raster[actualTile.getXPositionInRaster() + row + 1][actualTile.getYPositionInRaster() + col - 1]) {
 
-					int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
-					tile.setHeuristicWeight(dist);
-					tile.setWeight(100);
+						Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
+						tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
 
-					tile.setTotalWeight();
+						int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
+						tile.setHeuristicWeight(dist);
+						tile.setWeight(100);
 
-					tiles.add(tile);
-				}else{
-					Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
-					tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
+						tile.setTotalWeight();
 
-					int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
-					tile.setHeuristicWeight(dist);
-					tile.setWeight(1);
+						tiles.add(tile);
+					} else {
+						Tile tile = new Tile(TILE_SIZE, actualTile.getXPositionInRaster() + row, actualTile.getYPositionInRaster() + col);
+						tile.setAccessible(raster[actualTile.getXPositionInRaster() + row][actualTile.getYPositionInRaster() + col]);
 
-					tile.setTotalWeight();
+						int dist = (int) Math.sqrt(Math.pow(targetTile.getXCoord() - tile.getXCoord(), 2) + Math.pow(targetTile.getYCoord() - tile.getYCoord(), 2));
+						tile.setHeuristicWeight(dist);
+						tile.setWeight(1);
 
-					tiles.add(tile);
+						tile.setTotalWeight();
+
+						tiles.add(tile);
+					}
 				}
 			}
 		}
 		return tiles;
-
 	}
 
 	public Tile findLowestWeight() {
